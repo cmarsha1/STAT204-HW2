@@ -1,0 +1,92 @@
+---
+title: "HW2: Data Import, Cleaning, and Exploration"
+author: "Carmen Marshall"
+date: "10/6/26"
+format: html
+    toc: true
+---
+
+The PalmTraits 1.0 dataset comes from a paper compiling a species-level function trait database of palms worldwide. Comes from the data subfolder of HW2 folder, which is in week2.
+
+
+```{r}
+library(dplyr)
+```
+
+## Part 1: Import and First Look
+```{r} 
+# 1.1 Import the data
+palm_data <- read.delim("data/PalmTraits_1.0.txt", header = TRUE, stringsAsFactors = FALSE)
+# showing the structure of the palm data
+dim(palm_data)
+names(palm_data)
+head(palm_data, 5)
+str(palm_data)
+# There are 2557 rows and 29 columns, meaning 2557 species and 29 variables. The variables in text are Species Name, Genus, Species, Tribe, SubFamily, Understory/Canopy, Fruit size, fruit shape, fruit color description, main fruit colors, and conspicuousness. This leaves the rest of the variables, such as max stem heigh and max blade length, as numbers.
+```
+
+# 1.2
+a) The tallest species is Calamus manan, with a max stem height  of 170m. Its growth form is climbing, as the value in that column in represented by a 1. It makes sense for it to have that height because climbing trees have long stems
+b) There are 530 climbing species.
+c) Max_Blade_Length_m has the most missing values of the columns, with 659 or 25% of values missing.
+d) In addition to "understorey" and "canopy", the UnderstoreyCanopy column has a possible "both" value. There are also many cells that say "<empty>", which R would probably not count as an NA value. 
+```{r}
+# 1.2 Guided exploration in the data explorer / confirming a) and b) with code
+palm_data$SpecName[which.max(palm_data$MaxStemHeight_m)]
+sum(palm_data$Climbing == 1)
+table(palm_data$UnderstoreyCanopy) #shows 265 empty values
+```
+
+## Part 2: Data Cleaning with Base R
+
+```{r}
+# 2.1 Find the missing values
+# missing values in the whole dataset, and per column
+sum(is.na(palm_data))
+colSums(is.na(palm_data))
+
+# Percentage missing per column, sorted
+pct_missing <- round(100 * colMeans(is.na(palm_data)), 1)
+sort(pct_missing, decreasing = TRUE)
+
+# Duplicated rows
+sum(duplicated(palm_data))
+
+# Fruit trait data seem to have the most missing data, with Fruit Length and Width data having the highest percentage of missing values.The output of sum(duplicated(palm_data)) was 0 (or FALSE), indicating that there are no duplicate rows.
+```
+
+```{r}
+# 2.2 Create a working subset
+keep <- c("SpecName", "Climbing", "Acaulescent", "Erect", "StemArmed",
+           "MaxStemHeight_m", "Max_Blade_Length_m",
+           "AverageFruitLength_cm", "AverageFruitWidth_cm")
+palm_subset <- palm_data[, keep]
+dim(palm_subset)
+# This subset of the data now has 9 variables and still 2557 rows/observations
+```
+
+```{r}
+# 2.3 Handle missing values
+key_vars <- c("MaxStemHeight_m", "AverageFruitLength_cm")
+palm_clean <- palm_subset[complete.cases(palm_subset[, key_vars]), ]
+nrow(palm_subset) - nrow(palm_clean)   # how many rows were removed?
+colSums(is.na(palm_clean))             # what is still missing?
+# 650 rows/species were removed after cleaning the data and keeping the complete cases of the key variables, or about 25.4%. The variables that still have missing values are StemArmed, Max_Blade_Length_m, AverageFruitLength_cm, and AverageFruitWidth_cm. Removing species without these values could bias the data, as it could leave a lot of trees that are harder to measure for blade length (such as trees that are beyond human reach in the canopy) could skew the results for average height or stem height.
+```
+
+```{r}
+# 2.4 Fix data types
+str(palm_clean$StemArmed)
+palm_clean$StemArmed <- factor(palm_clean$StemArmed,
+                                levels = c(0, 1),
+                                labels = c("Unarmed", "Armed"))
+table(palm_clean$StemArmed, useNA = "ifany") # 1705 unarmed, 185 armed, 17 NA
+
+# fix data type for Climbing
+palm_clean$Climbing <- factor(palm_clean$Climbing,
+                               levels = c(0, 1, 2),
+                               labels = c("No", "Yes", "Both"))
+table(palm_clean$Climbing, useNA = "ifany")
+str(palm_clean)
+#It matters that these variables are factors instead of numbers because if we were to calculate summaries for these variables, they would calculate, for example, the mean of a bunch of 0s, 1s, and 2s, calculating a mean of a variable that doesn't have an average since it's not a measurement. We would want to get counts of how many species have a level of the factor, not numerical calculated summaries.
+```

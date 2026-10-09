@@ -2,8 +2,7 @@
 title: "HW2: Data Import, Cleaning, and Exploration"
 author: "Carmen Marshall"
 date: "10/6/26"
-format: html
-    toc: true
+format: pdf
 ---
 
 The PalmTraits 1.0 dataset comes from a paper compiling a species-level function trait database of palms worldwide. Comes from the data subfolder of HW2 folder, which is in week2.
@@ -16,14 +15,17 @@ library(dplyr)
 ## Part 1: Import and First Look
 ```{r} 
 # 1.1 Import the data
-palm_data <- read.delim("data/PalmTraits_1.0.txt", header = TRUE, stringsAsFactors = FALSE)
+palm_data <- read.delim("data/PalmTraits_1.0.txt", header = TRUE, 
+     stringsAsFactors = FALSE)
 # showing the structure of the palm data
 dim(palm_data)
 names(palm_data)
 head(palm_data, 5)
 str(palm_data)
-# There are 2557 rows and 29 columns, meaning 2557 species and 29 variables. The variables in text are Species Name, Genus, Species, Tribe, SubFamily, Understory/Canopy, Fruit size, fruit shape, fruit color description, main fruit colors, and conspicuousness. This leaves the rest of the variables, such as max stem heigh and max blade length, as numbers.
+
 ```
+
+There are 2557 rows and 29 columns, meaning 2557 species and 29 variables. The variables in text are Species Name, Genus, Species, Tribe, SubFamily, Understory/Canopy, Fruit size, fruit shape, fruit color description, main fruit colors, and conspicuousness. This leaves the rest of the variables, such as max stem heigh and max blade length, as numbers.
 
 # 1.2
 a) The tallest species is Calamus manan, with a max stem height  of 170m. Its growth form is climbing, as the value in that column in represented by a 1. It makes sense for it to have that height because climbing trees have long stems
@@ -51,9 +53,9 @@ sort(pct_missing, decreasing = TRUE)
 
 # Duplicated rows
 sum(duplicated(palm_data))
-
-# Fruit trait data seem to have the most missing data, with Fruit Length and Width data having the highest percentage of missing values.The output of sum(duplicated(palm_data)) was 0 (or FALSE), indicating that there are no duplicate rows.
 ```
+
+Fruit trait data seem to have the most missing data, with Fruit Length and Width data having the highest percentage of missing values.The output of sum(duplicated(palm_data)) was 0 (or FALSE), indicating that there are no duplicate rows.
 
 ```{r}
 # 2.2 Create a working subset
@@ -71,22 +73,147 @@ key_vars <- c("MaxStemHeight_m", "AverageFruitLength_cm")
 palm_clean <- palm_subset[complete.cases(palm_subset[, key_vars]), ]
 nrow(palm_subset) - nrow(palm_clean)   # how many rows were removed?
 colSums(is.na(palm_clean))             # what is still missing?
-# 650 rows/species were removed after cleaning the data and keeping the complete cases of the key variables, or about 25.4%. The variables that still have missing values are StemArmed, Max_Blade_Length_m, AverageFruitLength_cm, and AverageFruitWidth_cm. Removing species without these values could bias the data, as it could leave a lot of trees that are harder to measure for blade length (such as trees that are beyond human reach in the canopy) could skew the results for average height or stem height.
 ```
 
+650 rows/species were removed after cleaning the data and keeping the complete cases of the key variables, or about 25.4%. The variables that still have missing values are StemArmed, Max_Blade_Length_m, AverageFruitLength_cm, and AverageFruitWidth_cm. Removing species without these values could bias the data, as it could leave a lot of trees that are harder to measure for blade length (such as trees that are beyond human reach in the canopy) could skew the results for average height or stem height.
 ```{r}
 # 2.4 Fix data types
 str(palm_clean$StemArmed)
-palm_clean$StemArmed <- factor(palm_clean$StemArmed,
-                                levels = c(0, 1),
-                                labels = c("Unarmed", "Armed"))
+palm_clean$StemArmed <- factor(palm_clean$StemArmed,levels = c(0, 1), 
+     labels = c("Unarmed", "Armed"))
 table(palm_clean$StemArmed, useNA = "ifany") # 1705 unarmed, 185 armed, 17 NA
 
 # fix data type for Climbing
-palm_clean$Climbing <- factor(palm_clean$Climbing,
-                               levels = c(0, 1, 2),
-                               labels = c("No", "Yes", "Both"))
+palm_clean$Climbing <- factor(palm_clean$Climbing, levels = c(0, 1, 2), 
+     labels = c("No", "Yes", "Both"))
 table(palm_clean$Climbing, useNA = "ifany")
 str(palm_clean)
-#It matters that these variables are factors instead of numbers because if we were to calculate summaries for these variables, they would calculate, for example, the mean of a bunch of 0s, 1s, and 2s, calculating a mean of a variable that doesn't have an average since it's not a measurement. We would want to get counts of how many species have a level of the factor, not numerical calculated summaries.
 ```
+
+It matters that these variables are factors instead of numbers because if we were to calculate summaries for these variables, they would calculate,for example, the mean of a bunch of 0s, 1s, and 2s, calculating a mean of a variable that doesn't have an average since it's not a measurement. We would want to get counts of how many species have a level of the factor, not numerical calculated summaries.
+
+```{r}
+# 2.5 Create new variables
+# Part a: make a size category from stem height
+palm_clean$size_category <- ifelse(palm_clean$MaxStemHeight_m <= 5, "Small",
+                            ifelse(palm_clean$MaxStemHeight_m <= 15, "Medium",
+                            ifelse(palm_clean$MaxStemHeight_m <= 30, "Tall", "Very Tall")))
+palm_clean$size_category <- factor(palm_clean$size_category,
+                                  levels = c("Small", "Medium", "Tall", "Very Tall"))
+table(palm_clean$size_category) # 837 small, 621 medium, 351 tall, 98 very tall
+# Part b: make fruit aspect ratio
+fruit_ratio <- palm_clean$AverageFruitLength_cm / palm_clean$AverageFruitWidth_cm
+summary(fruit_ratio, na.rm = TRUE)
+```
+
+A ratio of above 1 means that for the given species, the average fruit length is larger than the same species' average fruit width. There are 54 NA values because those given species either do not have data for Avg Fruit Length or Width or both available to calculate the ratio.
+
+## Part 3: Descriptive Statistics
+
+```{r}
+# 3.1 Summary Statistics
+# summary stats for max stem height
+max_stem_height <- palm_clean$MaxStemHeight_m
+mean(max_stem_height)
+median(max_stem_height)
+sd(max_stem_height)
+quantile(max_stem_height, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+# summary stats for average fruit length
+avg_fruit_length <- palm_clean$AverageFruitLength_cm
+mean(avg_fruit_length)
+median(avg_fruit_length)
+sd(avg_fruit_length)
+quantile(avg_fruit_length, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+data.frame1 <- data.frame(Mean = c(mean(max_stem_height), mean(avg_fruit_length)), 
+     Median = c(median(max_stem_height), median(avg_fruit_length)), 
+     SD = c(sd(max_stem_height), sd(avg_fruit_length)), 
+     First.Quantile = c(quantile(max_stem_height, probs = 0.25), quantile(avg_fruit_length, probs = 0.25)), 
+     Third.Quantile = c(quantile(max_stem_height, probs = 0.75), quantile(avg_fruit_length, probs = 0.75))) 
+rownames(data.frame1) <- c("Max Stem Height", "Average Fruit Length")
+print(data.frame1)
+```
+
+Max Stem Height has a mean of 7 and a median of 11, meaning that the center is a bit farther from the average of this variable and the distribution will be more asymmetrical. In contrast, the mean and median of Avg Fruit Length are a lot closer at 2.19 and 1.5, indicating a more symmetrical distribution.
+
+```{r}
+# 3.2 Frequency tables
+table(palm_clean$size_category)
+prop.table(table(palm_clean$size_category))
+
+# Two-way table: size category vs armature, with row proportions
+tab <- table(palm_clean$size_category, palm_clean$StemArmed)
+tab
+round(prop.table(tab, margin = 1), 2)
+# Medium height palms have the highest proportion of armed palms, about 13%.
+```
+
+```{r}
+# 3.3: Group summaries with dplyr
+palm_clean %>%                       
+   group_by(StemArmed) %>%            
+   summarize(n = n(), 
+   mean_height = mean(MaxStemHeight_m), 
+   sd_height = sd(MaxStemHeight_m), 
+   median_fruit_length = median(AverageFruitLength_cm))
+
+# group summary by size category + add maximum of max stem height
+palm_summary <- palm_clean %>%
+    group_by(size_category) %>%
+    summarize(n = n(), 
+     mean_height2 = mean(MaxStemHeight_m), 
+     sd_height2 = sd(MaxStemHeight_m), 
+     median_fruit_length2 = median(AverageFruitLength_cm), 
+     max_height = max(MaxStemHeight_m))
+print(palm_summary)
+```
+
+This summary shows, as expected, that the Very Tall palms have the largest mean height as well as the largest maximum height. We can also infer from the table that as trees are taller, the median fruit length increases as well.
+
+## Part 4: Visualizations with Base R
+
+```{r}
+# 4.1 Histogram of stem height
+hist(palm_clean$MaxStemHeight_m, main = paste("Maximum Stem Height of Palm Species"), 
+    xlim = c(0, 170), xlab = "Max Stem Height (meters)", ylab = "Frequency")
+# The shape of this histogram is very skewed to the right, with a majority 
+# of the data sitting in the first bins betweeen 0 and 50, probably because 
+# this variable has so much variation between 0 and 170m, with a lot sitting 
+# between 0 and 1m.
+hist(log10(palm_clean$MaxStemHeight_m + 1),
+    main = paste("Distribution of Log-Transformed Max Stem Height (log10(x+1))"), 
+    xlab = "Max Stem Height (meters)", ylab = "Frequency")
+# This second histogram makes looking at the data much more readable. Because 
+# there are a lot of species with a value of 0, adding +1 in the logarithmic 
+# function stops you from getting an undefined when putting it into a logarithm.
+```
+
+```{r}
+# 4.2: Boxplot of stem height by armature
+boxplot(palm_clean$MaxStemHeight_m ~ palm_clean$StemArmed, 
+     data = palm_clean, 
+     main = paste("Maximum Stem Height of Palms Across Stem Armature"), 
+     xlab = "Stem Armature", ylab = "Maximum Stem Height (meters)")
+# Looking at the boxplot, it is hard to tell but I believe the Armed palms 
+# are, on average slighter taller than the Unarmed, thought the Unarmed 
+# category has many outliers that are much taller than the average armed palm.
+```
+
+```{r}
+# 4.3: Scatterplot of fruit dimensions
+plot(palm_clean$AverageFruitLength_cm, palm_clean$AverageFruitWidth_cm, 
+main = paste("Fruit Dimensions"), xlab = "Avg. Fruit Length (cm))", 
+ylab = "Avg. Fruit Width (cm)", abline(a = 0, b = 1)) 
+# If a species is above the line, that means the fruit width of that species 
+# is higher than the length. In contrast, if the species is below the line, 
+# that means the fruit length is higher than the width.
+cor(palm_clean$AverageFruitLength_cm, palm_clean$AverageFruitWidth_cm, 
+use = "complete.obs")
+# the correlation is 0.878
+```
+
+## Part 5: Reflection
+1) The biggest data quality issue I found was the number of missing values there were for a variety of the variables in the palm data. Additionally, there were also such a large number of variable that did not appear as important to analyze (such as PalmTribem PalmSumfamily, accSpecies, etc) that were distractions from numerical data that could be analyzed. Choosing to keep a certain group of variables allowed for less variables to deal with and look at, as well as removing some of the variables that had the most missing values, which would probably produce a biased result. 
+2) I was surprised that so many of the palm species had such a small maximum stem height, as I have always considered palm plants to be pretty tall. Secondly, I was interested in the pretty high correlation that has occurred between fruit length and fruit width, perhaps indicating some kind of growth pattern specific to palms.
+3) Rendering in the Quarto Document helps with 1) If the code is totally reproducible as it runs without error or local storage as the document renders, and 2) Helps catch what formatting errors you should change, since you can see the code running off the document causing some writing to be erased from the final PDF.

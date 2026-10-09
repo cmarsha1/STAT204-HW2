@@ -2,10 +2,11 @@
 title: "HW2: Data Import, Cleaning, and Exploration"
 author: "Carmen Marshall"
 date: "10/6/26"
-format: pdf
+format: html
+embed-resources: true 
 ---
 
-The PalmTraits 1.0 dataset comes from a paper compiling a species-level function trait database of palms worldwide. Comes from the data subfolder of HW2 folder, which is in week2.
+The PalmTraits 1.0 dataset comes from a paper compiling a species-level function trait database of palms worldwide. Downloaded as a public dataset from Dryad. Locally, comes from the data subfolder of HW2 folder, which is in week2.
 
 
 ```{r}
@@ -25,10 +26,10 @@ str(palm_data)
 
 ```
 
-There are 2557 rows and 29 columns, meaning 2557 species and 29 variables. The variables in text are Species Name, Genus, Species, Tribe, SubFamily, Understory/Canopy, Fruit size, fruit shape, fruit color description, main fruit colors, and conspicuousness. This leaves the rest of the variables, such as max stem heigh and max blade length, as numbers.
+There are 2557 rows and 29 columns, meaning 2557 species and 29 variables. The variables in text are Species Name, Genus, Species, Tribe, SubFamily, Understory/Canopy, Fruit size, fruit shape, fruit color description, main fruit colors, and conspicuousness. This leaves the rest of the variables, such as max stem height and max blade length, as numbers.
 
 # 1.2
-a) The tallest species is Calamus manan, with a max stem height  of 170m. Its growth form is climbing, as the value in that column in represented by a 1. It makes sense for it to have that height because climbing trees have long stems
+a) The tallest species is Calamus manan, with a max stem height  of 170m. Its growth form is climbing, as the value in that column in represented by a 1. It makes sense for it to have that height because climbing trees have long stems.
 b) There are 530 climbing species.
 c) Max_Blade_Length_m has the most missing values of the columns, with 659 or 25% of values missing.
 d) In addition to "understorey" and "canopy", the UnderstoreyCanopy column has a possible "both" value. There are also many cells that say "<empty>", which R would probably not count as an NA value. 
@@ -64,8 +65,9 @@ keep <- c("SpecName", "Climbing", "Acaulescent", "Erect", "StemArmed",
            "AverageFruitLength_cm", "AverageFruitWidth_cm")
 palm_subset <- palm_data[, keep]
 dim(palm_subset)
-# This subset of the data now has 9 variables and still 2557 rows/observations
 ```
+
+This subset of the data now has 9 variables and still 2557 rows/observations.
 
 ```{r}
 # 2.3 Handle missing values
@@ -146,8 +148,9 @@ prop.table(table(palm_clean$size_category))
 tab <- table(palm_clean$size_category, palm_clean$StemArmed)
 tab
 round(prop.table(tab, margin = 1), 2)
-# Medium height palms have the highest proportion of armed palms, about 13%.
 ```
+
+Medium height palms have the highest proportion of armed palms, about 13%.
 
 ```{r}
 # 3.3: Group summaries with dplyr
@@ -169,7 +172,9 @@ palm_summary <- palm_clean %>%
 print(palm_summary)
 ```
 
-This summary shows, as expected, that the Very Tall palms have the largest mean height as well as the largest maximum height. We can also infer from the table that as trees are taller, the median fruit length increases as well.
+This summary shows, as expected, that the Very Tall palms have the largest mean height as well as the 
+largest maximum height. We can also infer from the table that as trees are taller, the median fruit 
+length increases as well.
 
 ## Part 4: Visualizations with Base R
 
@@ -177,17 +182,19 @@ This summary shows, as expected, that the Very Tall palms have the largest mean 
 # 4.1 Histogram of stem height
 hist(palm_clean$MaxStemHeight_m, main = paste("Maximum Stem Height of Palm Species"), 
     xlim = c(0, 170), xlab = "Max Stem Height (meters)", ylab = "Frequency")
-# The shape of this histogram is very skewed to the right, with a majority 
-# of the data sitting in the first bins betweeen 0 and 50, probably because 
-# this variable has so much variation between 0 and 170m, with a lot sitting 
-# between 0 and 1m.
 hist(log10(palm_clean$MaxStemHeight_m + 1),
     main = paste("Distribution of Log-Transformed Max Stem Height (log10(x+1))"), 
     xlab = "Max Stem Height (meters)", ylab = "Frequency")
-# This second histogram makes looking at the data much more readable. Because 
-# there are a lot of species with a value of 0, adding +1 in the logarithmic 
-# function stops you from getting an undefined when putting it into a logarithm.
 ```
+
+The shape of this first histogram is very skewed to the right, with a majority of the data sitting 
+in the first bins betweeen 0 and 50, probably because this variable has so much variation between 0 
+and 170m, with a lot sitting 
+between 0 and 1m.
+
+This second histogram makes looking at the data much more readable. Because there are a lot of 
+species with a value of 0, adding +1 in the logarithmic  function stops you from getting an 
+undefined when putting it into a logarithm.
 
 ```{r}
 # 4.2: Boxplot of stem height by armature
@@ -195,23 +202,25 @@ boxplot(palm_clean$MaxStemHeight_m ~ palm_clean$StemArmed,
      data = palm_clean, 
      main = paste("Maximum Stem Height of Palms Across Stem Armature"), 
      xlab = "Stem Armature", ylab = "Maximum Stem Height (meters)")
-# Looking at the boxplot, it is hard to tell but I believe the Armed palms 
-# are, on average slighter taller than the Unarmed, thought the Unarmed 
-# category has many outliers that are much taller than the average armed palm.
 ```
+
+Looking at the boxplot, it is hard to tell but I believe the Armed palms are, on 
+average slighter taller than the Unarmed, thought the Unarmed category has many 
+ outliers that are much taller than the average armed palm.
 
 ```{r}
 # 4.3: Scatterplot of fruit dimensions
 plot(palm_clean$AverageFruitLength_cm, palm_clean$AverageFruitWidth_cm, 
 main = paste("Fruit Dimensions"), xlab = "Avg. Fruit Length (cm))", 
 ylab = "Avg. Fruit Width (cm)", abline(a = 0, b = 1)) 
-# If a species is above the line, that means the fruit width of that species 
-# is higher than the length. In contrast, if the species is below the line, 
-# that means the fruit length is higher than the width.
 cor(palm_clean$AverageFruitLength_cm, palm_clean$AverageFruitWidth_cm, 
 use = "complete.obs")
 # the correlation is 0.878
 ```
+
+If a species is above the line, that means the fruit width of that species is 
+higher than the length. In contrast, if the species is below the line, that means 
+the fruit length is higher than the width.
 
 ## Part 5: Reflection
 1) The biggest data quality issue I found was the number of missing values there were for a variety of the variables in the palm data. Additionally, there were also such a large number of variable that did not appear as important to analyze (such as PalmTribem PalmSumfamily, accSpecies, etc) that were distractions from numerical data that could be analyzed. Choosing to keep a certain group of variables allowed for less variables to deal with and look at, as well as removing some of the variables that had the most missing values, which would probably produce a biased result. 
